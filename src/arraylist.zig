@@ -74,6 +74,39 @@ pub fn ArrayList(comptime T: type) type {
             return true;
         }
 
+        pub fn contains(self: ArrayList(T), target: T) bool {
+            return self.index_of(target) >= 0;
+        }
+
+        pub fn index_of(self: ArrayList(T), target: T) isize {
+            const type_info = @typeInfo(T);
+            switch (type_info) {
+                .Struct => {
+                    for (self.elements[0..self.size], 0..) |element, index| {
+                        if (@hasDecl(T, "equals")) {
+                            if (element.equals(target)) {
+                                return @intCast(index);
+                            }
+                        } else {
+                            if (element == target) {
+                                return @intCast(index);
+                            }
+                        }
+                    }
+                    return -1;
+                },
+                else => {
+                    for (self.elements[0..self.size], 0..) |element, index| {
+                        if (element == target) {
+                            return @intCast(index);
+                        }
+                    }
+                    return -1;
+                },
+            }
+            return -1;
+        }
+
         pub fn isEmpty(self: ArrayList(T)) bool {
             return self.size == 0;
         }
@@ -249,4 +282,48 @@ test "does not match all the elements from the list" {
             return @rem(element, 3) == 0;
         }
     }.match));
+}
+
+test "contains the element in the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(15);
+    try list.add(21);
+    try list.add(40);
+
+    try std.testing.expect(list.contains(40));
+}
+
+test "does not contain the element in the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(15);
+    try list.add(21);
+    try list.add(40);
+
+    try std.testing.expect(!list.contains(50));
+}
+
+test "finds the index of an element from the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(15);
+    try list.add(21);
+    try list.add(40);
+
+    try std.testing.expectEqual(2, list.index_of(40));
+}
+
+test "does not find the index of an element from the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(15);
+    try list.add(21);
+    try list.add(40);
+
+    try std.testing.expectEqual(-1, list.index_of(0));
 }
