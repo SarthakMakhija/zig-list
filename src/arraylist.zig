@@ -86,30 +86,10 @@ pub fn ArrayList(comptime T: type) type {
         }
 
         pub fn index_of(self: ArrayList(T), target: T) isize {
-            const type_info = @typeInfo(T);
-            switch (type_info) {
-                .Struct => {
-                    for (self.elements[0..self.size], 0..) |element, index| {
-                        if (@hasDecl(T, "equals")) {
-                            if (element.equals(target)) {
-                                return @intCast(index);
-                            }
-                        } else {
-                            if (element == target) {
-                                return @intCast(index);
-                            }
-                        }
-                    }
-                    return -1;
-                },
-                else => {
-                    for (self.elements[0..self.size], 0..) |element, index| {
-                        if (element == target) {
-                            return @intCast(index);
-                        }
-                    }
-                    return -1;
-                },
+            for (self.elements[0..self.size], 0..) |element, index| {
+                if (checkEquality(element, target)) {
+                    return @intCast(index);
+                }
             }
             return -1;
         }
@@ -122,7 +102,7 @@ pub fn ArrayList(comptime T: type) type {
             return Itr(T).init(self);
         }
 
-        pub fn filter(self: ArrayList(T), predicate: fn(i32) bool) !Filter(T) {
+        pub fn filter(self: ArrayList(T), predicate: fn (i32) bool) !Filter(T) {
             return Filter(T).init(self.allocator, self, predicate);
         }
 
@@ -139,6 +119,14 @@ pub fn ArrayList(comptime T: type) type {
 
         fn isIndexInBounds(index: usize, bound_index: usize) bool {
             return index >= 0 and index < bound_index;
+        }
+
+        fn checkEquality(one: T, other: T) bool {
+            const type_info = @typeInfo(T);
+            switch (type_info) {
+                .Struct => return if (@hasDecl(T, "equals")) one.equals(other) else one == other,
+                else => return one == other,
+            }
         }
 
         pub fn Itr(comptime V: type) type {
@@ -439,9 +427,9 @@ test "filters elements in the list" {
     try list.add(40);
 
     const filter = try list.filter(struct {
-       fn filter(element: i32) bool {
-           return @rem(element, 2) == 0;
-       }
+        fn filter(element: i32) bool {
+            return @rem(element, 2) == 0;
+        }
     }.filter);
     defer filter.deinit();
 
