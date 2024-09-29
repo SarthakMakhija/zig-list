@@ -5,6 +5,13 @@ pub const Error = error{
     NoSuchElement,
 };
 
+//TODO:
+// addAll,
+// test for ArrayList with a struct,
+// check for concurrent modifications in iterator, filter
+// remove,
+// removeFirst,
+// removeLast,
 pub fn ArrayList(comptime T: type) type {
     return struct {
         elements: []T,
