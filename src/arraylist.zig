@@ -111,6 +111,10 @@ pub fn ArrayList(comptime T: type) type {
             return self.size == 0;
         }
 
+        pub fn iterator(self: ArrayList(T)) Itr(T) {
+            return Itr(T).init(self);
+        }
+
         pub fn deinit(self: ArrayList(T)) void {
             self.allocator.free(self.elements);
         }
@@ -124,6 +128,34 @@ pub fn ArrayList(comptime T: type) type {
 
         fn isIndexInBounds(index: usize, bound_index: usize) bool {
             return index >= 0 and index < bound_index;
+        }
+
+        pub fn Itr(comptime V: type) type {
+            return struct {
+                index: usize,
+                size: usize,
+                elements: []V,
+
+                fn init(source: ArrayList(V)) Itr(V) {
+                    return .{
+                        .index = 0,
+                        .size = source.size,
+                        .elements = source.elements,
+                    };
+                }
+
+                pub fn hashNext(self: Itr(V)) bool {
+                    return self.index < self.size;
+                }
+
+                pub fn next(self: *Itr(V)) void {
+                    self.index = self.index + 1;
+                }
+
+                pub fn element(self: Itr(V)) V {
+                    return self.elements[self.index];
+                }
+            };
         }
     };
 }
@@ -326,4 +358,35 @@ test "does not find the index of an element from the list" {
     try list.add(40);
 
     try std.testing.expectEqual(-1, list.index_of(0));
+}
+
+test "iterates over an emty list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    var iterator = list.iterator();
+    try std.testing.expect(!iterator.hashNext());
+}
+
+test "iterates over a non-emty list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(15);
+    try list.add(21);
+    try list.add(40);
+
+    var iterator = list.iterator();
+    try std.testing.expect(iterator.hashNext());
+
+    try std.testing.expectEqual(15, iterator.element());
+
+    iterator.next();
+    try std.testing.expectEqual(21, iterator.element());
+
+    iterator.next();
+    try std.testing.expectEqual(40, iterator.element());
+
+    iterator.next();
+    try std.testing.expect(!iterator.hashNext());
 }
