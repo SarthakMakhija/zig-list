@@ -56,7 +56,7 @@ pub fn ArrayList(comptime T: type) type {
             return if (self.isEmpty()) Error.NoSuchElement else self.elements[self.size - 1];
         }
 
-        pub fn match_any(self: ArrayList(T), predicate: fn (T) bool) bool {
+        pub fn matches_any(self: ArrayList(T), predicate: fn (T) bool) bool {
             for (self.elements[0..self.size]) |element| {
                 if (predicate(element)) {
                     return true;
@@ -65,7 +65,7 @@ pub fn ArrayList(comptime T: type) type {
             return false;
         }
 
-        pub fn match_all(self: ArrayList(T), predicate: fn (T) bool) bool {
+        pub fn matches_all(self: ArrayList(T), predicate: fn (T) bool) bool {
             for (self.elements[0..self.size]) |element| {
                 if (!predicate(element)) {
                     return false;
@@ -115,6 +115,10 @@ pub fn ArrayList(comptime T: type) type {
             return Itr(T).init(self);
         }
 
+        pub fn filter(self: ArrayList(T), predicate: fn(i32) bool) !Filter(T) {
+            return Filter(T).init(self.allocator, self, predicate);
+        }
+
         pub fn deinit(self: ArrayList(T)) void {
             self.allocator.free(self.elements);
         }
@@ -154,6 +158,34 @@ pub fn ArrayList(comptime T: type) type {
 
                 pub fn element(self: Itr(V)) V {
                     return self.elements[self.index];
+                }
+            };
+        }
+
+        pub fn Filter(comptime V: type) type {
+            return struct {
+                filtered: std.ArrayList(V),
+                allocator: std.mem.Allocator,
+
+                fn init(allocator: std.mem.Allocator, source: ArrayList(V), predicate: fn (i32) bool) !Filter(V) {
+                    var filtered = std.ArrayList(V).init(allocator);
+                    for (source.elements[0..source.size]) |element| {
+                        if (predicate(element)) {
+                            try filtered.append(element);
+                        }
+                    }
+                    return .{
+                        .filtered = filtered,
+                        .allocator = allocator,
+                    };
+                }
+
+                pub fn allFiltered(self: Filter(V)) std.ArrayList(V) {
+                    return self.filtered;
+                }
+
+                pub fn deinit(self: Filter(V)) void {
+                    self.filtered.deinit();
                 }
             };
         }
@@ -264,7 +296,7 @@ test "matches an element from the list" {
     try list.add(20);
     try list.add(45);
 
-    try std.testing.expect(list.match_any(struct {
+    try std.testing.expect(list.matches_any(struct {
         fn match(element: i32) bool {
             return @rem(element, 2) == 0;
         }
@@ -279,7 +311,7 @@ test "does not match any element from the list" {
     try list.add(21);
     try list.add(45);
 
-    try std.testing.expectEqual(false, list.match_any(struct {
+    try std.testing.expectEqual(false, list.matches_any(struct {
         fn match(element: i32) bool {
             return @rem(element, 2) == 0;
         }
@@ -294,7 +326,7 @@ test "matches all the elements from the list" {
     try list.add(20);
     try list.add(44);
 
-    try std.testing.expect(list.match_all(struct {
+    try std.testing.expect(list.matches_all(struct {
         fn match(element: i32) bool {
             return @rem(element, 2) == 0;
         }
@@ -309,7 +341,7 @@ test "does not match all the elements from the list" {
     try list.add(21);
     try list.add(40);
 
-    try std.testing.expectEqual(false, list.match_all(struct {
+    try std.testing.expectEqual(false, list.matches_all(struct {
         fn match(element: i32) bool {
             return @rem(element, 3) == 0;
         }
@@ -389,4 +421,41 @@ test "iterates over a non-emty list" {
 
     iterator.next();
     try std.testing.expect(!iterator.hashNext());
+}
+
+test "filters elements in the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(10);
+    try list.add(21);
+    try list.add(40);
+
+    const filter = try list.filter(struct {
+       fn filter(element: i32) bool {
+           return @rem(element, 2) == 0;
+       }
+    }.filter);
+    defer filter.deinit();
+
+    try std.testing.expectEqual(10, filter.allFiltered().items[0]);
+    try std.testing.expectEqual(40, filter.allFiltered().items[1]);
+}
+
+test "deos not find any filtered elements in the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(11);
+    try list.add(21);
+    try list.add(41);
+
+    const filter = try list.filter(struct {
+        fn filter(element: i32) bool {
+            return @rem(element, 2) == 0;
+        }
+    }.filter);
+    defer filter.deinit();
+
+    try std.testing.expectEqual(0, filter.allFiltered().items.len);
 }
