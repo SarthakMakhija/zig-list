@@ -56,6 +56,24 @@ pub fn ArrayList(comptime T: type) type {
             return if (self.isEmpty()) Error.NoSuchElement else self.elements[self.size - 1];
         }
 
+        pub fn match_any(self: ArrayList(T), predicate: fn (T) bool) bool {
+            for (self.elements[0..self.size]) |element| {
+                if (predicate(element)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        pub fn match_all(self: ArrayList(T), predicate: fn (T) bool) bool {
+            for (self.elements[0..self.size]) |element| {
+                if (!predicate(element)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         pub fn isEmpty(self: ArrayList(T)) bool {
             return self.size == 0;
         }
@@ -171,4 +189,64 @@ test "attempts to set the element at an index which is beyond the bounds of list
 
     try list.add(10);
     try std.testing.expectError(Error.IndexOutOfBounds, list.set(1, 20));
+}
+
+test "matches an element from the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(15);
+    try list.add(20);
+    try list.add(45);
+
+    try std.testing.expect(list.match_any(struct {
+        fn match(element: i32) bool {
+            return @rem(element, 2) == 0;
+        }
+    }.match));
+}
+
+test "does not match any element from the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(15);
+    try list.add(21);
+    try list.add(45);
+
+    try std.testing.expectEqual(false, list.match_any(struct {
+        fn match(element: i32) bool {
+            return @rem(element, 2) == 0;
+        }
+    }.match));
+}
+
+test "matches all the elements from the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(10);
+    try list.add(20);
+    try list.add(44);
+
+    try std.testing.expect(list.match_all(struct {
+        fn match(element: i32) bool {
+            return @rem(element, 2) == 0;
+        }
+    }.match));
+}
+
+test "does not match all the elements from the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(15);
+    try list.add(21);
+    try list.add(40);
+
+    try std.testing.expectEqual(false, list.match_all(struct {
+        fn match(element: i32) bool {
+            return @rem(element, 3) == 0;
+        }
+    }.match));
 }
