@@ -1,10 +1,5 @@
 const std = @import("std");
 
-pub const Error = error{
-    IndexOutOfBounds,
-    NoSuchElement,
-};
-
 //TODO:
 // addAll,
 // test for ArrayList with a struct,
@@ -18,6 +13,11 @@ pub fn ArrayList(comptime T: type) type {
         index: usize,
         size: usize,
         allocator: std.mem.Allocator,
+
+        pub const Error = error{
+            IndexOutOfBounds,
+            NoSuchElement,
+        };
 
         const DEFAULT_CAPACITY: usize = 10;
 
@@ -215,7 +215,7 @@ test "attempts to get an element from list at an index which is beyond the bound
     defer list.deinit();
 
     try list.add(10);
-    try std.testing.expectError(Error.IndexOutOfBounds, list.get(1));
+    try std.testing.expectError(ArrayList(i32).Error.IndexOutOfBounds, list.get(1));
 }
 
 test "gets the first element from the list" {
@@ -230,7 +230,7 @@ test "attempts to get the first element from an empty list" {
     var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
     defer list.deinit();
 
-    try std.testing.expectError(Error.NoSuchElement, list.getFirst());
+    try std.testing.expectError(ArrayList(i32).Error.NoSuchElement, list.getFirst());
 }
 
 test "gets the last element from the list" {
@@ -246,7 +246,7 @@ test "attempts to get the last element from an empty list" {
     var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
     defer list.deinit();
 
-    try std.testing.expectError(Error.NoSuchElement, list.getLast());
+    try std.testing.expectError(ArrayList(i32).Error.NoSuchElement, list.getLast());
 }
 
 test "validates that the list is empty" {
@@ -280,7 +280,7 @@ test "attempts to set the element at an index which is beyond the bounds of list
     defer list.deinit();
 
     try list.add(10);
-    try std.testing.expectError(Error.IndexOutOfBounds, list.set(1, 20));
+    try std.testing.expectError(ArrayList(i32).Error.IndexOutOfBounds, list.set(1, 20));
 }
 
 test "matches an element from the list" {
