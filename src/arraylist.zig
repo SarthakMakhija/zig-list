@@ -149,7 +149,7 @@ pub fn ArrayList(comptime T: type) type {
                     };
                 }
 
-                pub fn hashNext(self: Itr(V)) bool {
+                pub fn hasNext(self: Itr(V)) bool {
                     return self.index < self.size;
                 }
 
@@ -398,7 +398,7 @@ test "iterates over an emty list" {
     defer list.deinit();
 
     var iterator = list.iterator();
-    try std.testing.expect(!iterator.hashNext());
+    try std.testing.expect(!iterator.hasNext());
 }
 
 test "iterates over a non-emty list" {
@@ -410,7 +410,7 @@ test "iterates over a non-emty list" {
     try list.add(40);
 
     var iterator = list.iterator();
-    try std.testing.expect(iterator.hashNext());
+    try std.testing.expect(iterator.hasNext());
 
     try std.testing.expectEqual(15, iterator.element());
 
@@ -421,7 +421,7 @@ test "iterates over a non-emty list" {
     try std.testing.expectEqual(40, iterator.element());
 
     iterator.next();
-    try std.testing.expect(!iterator.hashNext());
+    try std.testing.expect(!iterator.hasNext());
 }
 
 test "filters elements in the list" {
