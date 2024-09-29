@@ -106,6 +106,12 @@ pub fn ArrayList(comptime T: type) type {
             return Filter(T).init(self.allocator, self, predicate);
         }
 
+        pub fn forEach(self: ArrayList(T), action: fn (i32) void) void {
+            for (self.elements[0..self.size]) |element| {
+                action(element);
+            }
+        }
+
         pub fn deinit(self: ArrayList(T)) void {
             self.allocator.free(self.elements);
         }
@@ -453,4 +459,25 @@ test "deos not find any filtered elements in the list" {
     defer filter.deinit();
 
     try std.testing.expectEqual(0, filter.allFiltered().items.len);
+}
+
+test "filters elements in the list ... " {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(10);
+    try list.add(21);
+    try list.add(40);
+
+    const Sum = struct {
+        var sumOfAll: i32 = 0;
+
+        fn do(element: i32) void {
+            sumOfAll = sumOfAll + element;
+        }
+    };
+
+    list.forEach(Sum.do);
+
+    try std.testing.expectEqual(71, Sum.sumOfAll);
 }
