@@ -1,5 +1,10 @@
 const std = @import("std");
 
+/// A contiguous, growable list of items in memory.
+/// This is a wrapper around an array of T values. Initialize either with `initWithoutCapacity` or `initWithCapacity`.
+///
+/// This struct internally stores a `std.mem.Allocator` for memory management.
+/// ArrayList is not concurrent-safe.
 pub fn ArrayList(comptime T: type) type {
     return struct {
         elements: []T,
@@ -7,17 +12,23 @@ pub fn ArrayList(comptime T: type) type {
         size: usize,
         allocator: std.mem.Allocator,
 
+        /// A set of different errors that ArrayList can return.
         pub const Error = error{
             IndexOutOfBounds,
             NoSuchElement,
         };
 
+        /// Default capacity of the internal backing array used by ArrayList.
+        /// It is used when ArrayList is initialized using `initWithoutCapacity`.
         const DEFAULT_CAPACITY: usize = 10;
 
+        /// Initialize ArrayList with `DEFAULT_CAPACITY`.
         pub fn initWithoutCapacity(allocator: std.mem.Allocator) !ArrayList(T) {
             return initWithCapacity(allocator, DEFAULT_CAPACITY);
         }
 
+        /// Initialize ArrayList with the given capacity. It uses the allocator of type `std.mem.Allocator`
+        /// to allocate the memory for the backing array.
         pub fn initWithCapacity(allocator: std.mem.Allocator, capacity: usize) !ArrayList(T) {
             return .{
                 .elements = try allocator.alloc(T, capacity),
@@ -27,6 +38,8 @@ pub fn ArrayList(comptime T: type) type {
             };
         }
 
+        /// Add the element in the ArrayList. It performs an append operation.
+        /// `add` operation can cause the underlying backing array to expand, if the backing array is full.
         pub fn add(self: *ArrayList(T), element: T) !void {
             if (self.index >= self.elements.len) {
                 try self.grow(self.elements.len * 2);
@@ -36,6 +49,8 @@ pub fn ArrayList(comptime T: type) type {
             self.size = self.size + 1;
         }
 
+        /// Add all the elements in the ArrayList. It performs an append operation with respect to the existing elements.
+        /// `addAll` oepration can cause the underlying backing array to expand, if the backing array is full.
         pub fn addAll(self: *ArrayList(T), elements: []const T) !void {
             if (elements.len == 0) {
                 return;
@@ -51,6 +66,9 @@ pub fn ArrayList(comptime T: type) type {
             }
         }
 
+        /// Remove the element at the given index.
+        /// `remove` returns an `IndexOutOfBounds` error if the index is beyond the bounds of the ArrayList.
+        /// `remove` effectively shifts all elements after the removed index one position to the left.
         pub fn remove(self: *ArrayList(T), index: usize) !void {
             if (!isIndexInBounds(index, self.size)) {
                 return Error.IndexOutOfBounds;
@@ -65,6 +83,7 @@ pub fn ArrayList(comptime T: type) type {
             self.size = self.size - 1;
         }
 
+        /// Remove the first element of the ArrayList, if the list is not empty.
         pub fn removeFirst(self: *ArrayList(T)) !void {
             if (self.isEmpty()) {
                 return Error.NoSuchElement;
@@ -72,6 +91,7 @@ pub fn ArrayList(comptime T: type) type {
             try self.remove(0);
         }
 
+        /// Remove the last element of the ArrayList, if the list is not empty.
         pub fn removeLast(self: *ArrayList(T)) !void {
             if (self.isEmpty()) {
                 return Error.NoSuchElement;
@@ -79,6 +99,8 @@ pub fn ArrayList(comptime T: type) type {
             try self.remove(self.size - 1);
         }
 
+        /// Set the element at the given index.
+        /// `set` returns an `IndexOutOfBounds` error if the index is beyond the bounds of the ArrayList.
         pub fn set(self: ArrayList(T), index: usize, element: T) !void {
             if (!isIndexInBounds(index, self.size)) {
                 return Error.IndexOutOfBounds;
@@ -87,18 +109,25 @@ pub fn ArrayList(comptime T: type) type {
             }
         }
 
+        /// Get the element at the given index.
+        /// `get` returns an `IndexOutOfBounds` error if the index is beyond the bounds of the ArrayList.
         pub fn get(self: ArrayList(T), index: usize) !T {
             return if (!isIndexInBounds(index, self.size)) Error.IndexOutOfBounds else self.elements[index];
         }
 
+        /// Get the first element of the ArrayList.
+        /// getFirst returns a `NoSuchElement` error if the list is empty.
         pub fn getFirst(self: ArrayList(T)) !T {
             return if (self.isEmpty()) Error.NoSuchElement else self.elements[0];
         }
 
+        /// Get the last element of the ArrayList.
+        /// getLast returns a `NoSuchElement` error if the list is empty.
         pub fn getLast(self: ArrayList(T)) !T {
             return if (self.isEmpty()) Error.NoSuchElement else self.elements[self.size - 1];
         }
 
+        /// Match any of the elements of the ArrayList using the given predicate.
         pub fn matches_any(self: ArrayList(T), predicate: fn (T) bool) bool {
             for (self.elements[0..self.size]) |element| {
                 if (predicate(element)) {
@@ -108,6 +137,7 @@ pub fn ArrayList(comptime T: type) type {
             return false;
         }
 
+        /// Match all the elements of the ArrayList using the given predicate.
         pub fn matches_all(self: ArrayList(T), predicate: fn (T) bool) bool {
             for (self.elements[0..self.size]) |element| {
                 if (!predicate(element)) {
@@ -117,11 +147,15 @@ pub fn ArrayList(comptime T: type) type {
             return true;
         }
 
+        /// Check if the target is contained in the ArrayList.
+        /// `contains` returns true if the target is contained in the ArrayList, false otherwise.
         pub fn contains(self: ArrayList(T), target: T) bool {
-            return self.index_of(target) >= 0;
+            return self.indexOf(target) >= 0;
         }
 
-        pub fn index_of(self: ArrayList(T), target: T) isize {
+        /// Return the index of the target in the ArrayList.
+        /// `indexOf` returns -1 if the list does not contain the target.
+        pub fn indexOf(self: ArrayList(T), target: T) isize {
             for (self.elements[0..self.size], 0..) |element, index| {
                 if (checkEquality(element, target)) {
                     return @intCast(index);
@@ -130,32 +164,43 @@ pub fn ArrayList(comptime T: type) type {
             return -1;
         }
 
+        /// Return true if the ArrayList is empty, false otherwise.
         pub fn isEmpty(self: ArrayList(T)) bool {
             return self.size == 0;
         }
 
+        /// Return the size of the ArrayList.
         pub fn getSize(self: ArrayList(T)) usize {
             return self.size;
         }
 
+        /// Return a forward moving iterator.
         pub fn iterator(self: ArrayList(T)) Itr(T) {
             return Itr(T).init(self);
         }
 
+        /// Return a filter with all the values satisified by the given predicate.
+        /// `filter` operation uses the allocator of the ArrayList to store all the filtered elements.
+        ///  Filter provides support for releasing the allocation.
         pub fn filter(self: ArrayList(T), predicate: fn (i32) bool) !Filter(T) {
             return Filter(T).init(self.allocator, self, predicate);
         }
 
+        /// Execute the given action over all the elements of the ArrayList.
         pub fn forEach(self: ArrayList(T), action: fn (i32) void) void {
             for (self.elements[0..self.size]) |element| {
                 action(element);
             }
         }
 
+        /// Release the memory allocated using the allocator of type std.mem.Allocator.
         pub fn deinit(self: ArrayList(T)) void {
             self.allocator.free(self.elements);
         }
 
+        /// Grow the ArrayList to the new size.
+        /// `grow` operation copies the existing elements to the newly allocated memory.
+        /// It also frees the existing memory.
         fn grow(self: *ArrayList(T), new_size: usize) !void {
             const copied = try self.allocator.alloc(T, new_size);
             @memcpy(copied[0..self.elements.len], self.elements);
@@ -163,10 +208,13 @@ pub fn ArrayList(comptime T: type) type {
             self.elements = copied;
         }
 
+        /// Return true if index is within the exclusive bounds from 0 to bound_index.
         fn isIndexInBounds(index: usize, bound_index: usize) bool {
             return index >= 0 and index < bound_index;
         }
 
+        /// Return true if the given values of type T are equal.
+        /// It checks for the equality either using a custom `equals` method or the `==` operator.
         fn checkEquality(one: T, other: T) bool {
             const type_info = @typeInfo(T);
             switch (type_info) {
@@ -175,12 +223,15 @@ pub fn ArrayList(comptime T: type) type {
             }
         }
 
+        /// A forward moving iterator.
+        /// It wraps the elements of ArrayList of type V. Initialize using the `init` method.
         pub fn Itr(comptime V: type) type {
             return struct {
                 index: usize,
                 size: usize,
                 elements: []V,
 
+                /// Initialize the Itr using the source of values.
                 fn init(source: ArrayList(V)) Itr(V) {
                     return .{
                         .index = 0,
@@ -189,25 +240,33 @@ pub fn ArrayList(comptime T: type) type {
                     };
                 }
 
+                /// Return true if the iterator has the next element.
                 pub fn hasNext(self: Itr(V)) bool {
                     return self.index < self.size;
                 }
 
+                /// Move the iterator to the next element.
+                /// `hasNext` should be invoked before invoking `next`.
                 pub fn next(self: *Itr(V)) void {
                     self.index = self.index + 1;
                 }
 
+                /// Return the element of type V at the current iterator position.
                 pub fn element(self: Itr(V)) V {
                     return self.elements[self.index];
                 }
             };
         }
 
+        /// All the values of the source ArrayList which satisfy a predicate are represeted by a Filter type.
+        /// It effectively contains all the values which satisfy a predicate.
         pub fn Filter(comptime V: type) type {
             return struct {
                 filtered: std.ArrayList(V),
                 allocator: std.mem.Allocator,
 
+                /// Initialize the Filter.
+                /// It uses the allocator of type `std.mem.Allocator` for allocating the collection to hold the filtered elements.
                 fn init(allocator: std.mem.Allocator, source: ArrayList(V), predicate: fn (i32) bool) !Filter(V) {
                     var filtered = std.ArrayList(V).init(allocator);
                     for (source.elements[0..source.size]) |element| {
@@ -221,10 +280,12 @@ pub fn ArrayList(comptime T: type) type {
                     };
                 }
 
+                /// Return all the filtered elements in form of `std.ArrayList`.
                 pub fn allFiltered(self: Filter(V)) std.ArrayList(V) {
                     return self.filtered;
                 }
 
+                /// Release the memory allocated to hold the filtered elements.
                 pub fn deinit(self: Filter(V)) void {
                     self.filtered.deinit();
                 }
@@ -461,7 +522,7 @@ test "finds the index of an element from the list" {
     try list.add(21);
     try list.add(40);
 
-    try std.testing.expectEqual(2, list.index_of(40));
+    try std.testing.expectEqual(2, list.indexOf(40));
 }
 
 test "does not find the index of an element from the list" {
@@ -472,7 +533,7 @@ test "does not find the index of an element from the list" {
     try list.add(21);
     try list.add(40);
 
-    try std.testing.expectEqual(-1, list.index_of(0));
+    try std.testing.expectEqual(-1, list.indexOf(0));
 }
 
 test "iterates over an emty list" {
