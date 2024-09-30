@@ -1,7 +1,6 @@
 const std = @import("std");
 
 //TODO:
-// addAll,
 // test for ArrayList with a struct,
 // check for concurrent modifications in iterator, filter
 pub fn ArrayList(comptime T: type) type {
@@ -38,6 +37,21 @@ pub fn ArrayList(comptime T: type) type {
             self.elements[self.index] = element;
             self.index = self.index + 1;
             self.size = self.size + 1;
+        }
+
+        pub fn addAll(self: *ArrayList(T), elements: []const T) !void {
+            if (elements.len == 0) {
+                return;
+            }
+            const remaining_capacity = self.elements.len - self.size;
+            if (elements.len > remaining_capacity) {
+                try self.grow(self.size + elements.len);
+            }
+            for (elements) |element| {
+                self.elements[self.index] = element;
+                self.index = self.index + 1;
+                self.size = self.size + 1;
+            }
         }
 
         pub fn remove(self: *ArrayList(T), index: usize) !void {
@@ -121,6 +135,10 @@ pub fn ArrayList(comptime T: type) type {
 
         pub fn isEmpty(self: ArrayList(T)) bool {
             return self.size == 0;
+        }
+
+        pub fn getSize(self: ArrayList(T)) usize {
+            return self.size;
         }
 
         pub fn iterator(self: ArrayList(T)) Itr(T) {
@@ -239,6 +257,48 @@ test "adds a few integers to the list such that the list requires a resize" {
     try std.testing.expectEqual(200, try list.get(1));
     try std.testing.expectEqual(300, try list.get(2));
     try std.testing.expectEqual(400, try list.get(3));
+}
+
+test "adds an empty slice to the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    const empty = [_]i32{};
+
+    try list.addAll(empty[0..]);
+    try std.testing.expectEqual(0, list.getSize());
+}
+
+test "adds a slice to the list which does not require resize" {
+    var list = try ArrayList(i32).initWithCapacity(std.testing.allocator, 5);
+    defer list.deinit();
+
+    const elements = [_]i32{ 10, 20, 30 };
+    try list.addAll(elements[0..]);
+
+    try std.testing.expectEqual(3, list.getSize());
+    try std.testing.expect(list.contains(10));
+    try std.testing.expect(list.contains(20));
+    try std.testing.expect(list.contains(30));
+}
+
+test "adds a slice to the list which requires resize" {
+    var list = try ArrayList(i32).initWithCapacity(std.testing.allocator, 5);
+    defer list.deinit();
+
+    try list.add(100);
+    try list.add(200);
+
+    const elements = [_]i32{ 10, 20, 30, 40 };
+
+    try list.addAll(elements[0..]);
+
+    try std.testing.expectEqual(6, list.getSize());
+    try std.testing.expect(list.contains(10));
+    try std.testing.expect(list.contains(20));
+    try std.testing.expect(list.contains(30));
+    try std.testing.expect(list.contains(100));
+    try std.testing.expect(list.contains(200));
 }
 
 test "attempts to get an element from list at an index which is beyond the bounds of list" {
