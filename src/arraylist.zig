@@ -43,6 +43,20 @@ pub fn ArrayList(comptime T: type) type {
             self.size = self.size + 1;
         }
 
+        pub fn remove(self: *ArrayList(T), index: usize) !void {
+            if (!isIndexInBounds(index, self.size)) {
+                return Error.IndexOutOfBounds;
+            }
+            if (self.size - 1 > index) {
+                var next_index: usize = index + 1;
+                while (next_index < self.size) : (next_index += 1) {
+                    self.elements[next_index - 1] = self.elements[next_index];
+                }
+            }
+            self.index = self.index - 1;
+            self.size = self.size - 1;
+        }
+
         pub fn set(self: ArrayList(T), index: usize, element: T) !void {
             if (!isIndexInBounds(index, self.size)) {
                 return Error.IndexOutOfBounds;
@@ -478,6 +492,61 @@ test "filters elements in the list ... " {
     };
 
     list.forEach(Sum.do);
-
     try std.testing.expectEqual(71, Sum.sumOfAll);
+}
+
+test "removes the first element from the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(10);
+    try list.add(21);
+    try list.add(40);
+
+    try list.remove(0);
+
+    try std.testing.expect(list.contains(21));
+    try std.testing.expect(list.contains(40));
+    try std.testing.expect(!list.contains(10));
+}
+
+test "removes one element from the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(10);
+    try list.add(21);
+    try list.add(40);
+    try list.add(50);
+
+    try list.remove(1);
+
+    try std.testing.expect(list.contains(10));
+    try std.testing.expect(list.contains(40));
+    try std.testing.expect(list.contains(50));
+    try std.testing.expect(!list.contains(21));
+}
+
+test "removes the last element from the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(10);
+    try list.add(21);
+    try list.add(40);
+
+    try list.remove(2);
+
+    try std.testing.expect(list.contains(10));
+    try std.testing.expect(list.contains(21));
+    try std.testing.expect(!list.contains(40));
+}
+
+test "attempts to remove an element at an index which is beyond the bounds of the list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(10);
+
+    try std.testing.expectError(ArrayList(i32).Error.IndexOutOfBounds, list.remove(2));
 }
