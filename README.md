@@ -10,7 +10,9 @@ The ported [ArrayList](https://github.com/SarthakMakhija/zig-list/blob/main/src/
 - Loops and conditionals
 - Structs 
 - Pointers
-- Allocating and freeing memory
+- Functions and methods
+- Functions as method parameters
+- Memory allocation and de-allocation
 - Error handling
 - Generics (`comptime`)
 - Unit tests
