@@ -258,7 +258,7 @@ pub fn ArrayList(comptime T: type) type {
             };
         }
 
-        /// All the values of the source ArrayList which satisfy a predicate are represeted by a Filter type.
+        /// All the values of the source ArrayList which satisfy a predicate are represented by a Filter type.
         /// It effectively contains all the values which satisfy a predicate.
         pub fn Filter(comptime V: type) type {
             return struct {
