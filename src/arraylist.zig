@@ -1,8 +1,5 @@
 const std = @import("std");
 
-//TODO:
-// test for ArrayList with a struct,
-// check for concurrent modifications in iterator, filter
 pub fn ArrayList(comptime T: type) type {
     return struct {
         elements: []T,
@@ -664,4 +661,76 @@ test "attempts to remove the last element from an empty list" {
     defer list.deinit();
 
     try std.testing.expectError(ArrayList(i32).Error.NoSuchElement, list.removeLast());
+}
+
+const User = struct {
+    id: usize,
+    name: []const u8,
+
+    fn equals(self: User, other: User) bool {
+        return self.id == other.id and std.mem.eql(u8, self.name, other.name);
+    }
+};
+
+test "adds Users to the list" {
+    var list = try ArrayList(User).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    const users = [_]User{
+        .{ .id = 10, .name = "John" },
+        .{ .id = 20, .name = "Rahul" },
+        .{ .id = 30, .name = "Mark" },
+    };
+
+    try list.addAll(users[0..]);
+
+    try std.testing.expect(list.contains(User{ .id = 10, .name = "John" }));
+    try std.testing.expect(list.contains(User{ .id = 20, .name = "Rahul" }));
+    try std.testing.expect(list.contains(User{ .id = 30, .name = "Mark" }));
+}
+
+test "adds and gets Users to/from the list" {
+    var list = try ArrayList(User).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    const users = [_]User{
+        .{ .id = 10, .name = "John" },
+        .{ .id = 20, .name = "Rahul" },
+        .{ .id = 30, .name = "Mark" },
+    };
+
+    try list.addAll(users[0..]);
+
+    try std.testing.expectEqual(User{ .id = 10, .name = "John" }, list.getFirst());
+    try std.testing.expectEqual(User{ .id = 20, .name = "Rahul" }, list.get(1));
+    try std.testing.expectEqual(User{ .id = 30, .name = "Mark" }, list.getLast());
+}
+
+test "iterates over a list of Users" {
+    var list = try ArrayList(User).initWithCapacity(std.testing.allocator, 2);
+    defer list.deinit();
+
+    const users = [_]User{
+        .{ .id = 10, .name = "John" },
+        .{ .id = 20, .name = "Rahul" },
+        .{ .id = 30, .name = "Mark" },
+        .{ .id = 40, .name = "Carol" },
+    };
+
+    try list.addAll(users[0..]);
+
+    var iterator = list.iterator();
+    try std.testing.expectEqual(User{ .id = 10, .name = "John" }, iterator.element());
+
+    iterator.next();
+    try std.testing.expectEqual(User{ .id = 20, .name = "Rahul" }, iterator.element());
+
+    iterator.next();
+    try std.testing.expectEqual(User{ .id = 30, .name = "Mark" }, iterator.element());
+
+    iterator.next();
+    try std.testing.expectEqual(User{ .id = 40, .name = "Carol" }, iterator.element());
+
+    iterator.next();
+    try std.testing.expect(!iterator.hasNext());
 }
