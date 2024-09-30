@@ -4,7 +4,6 @@ const std = @import("std");
 // addAll,
 // test for ArrayList with a struct,
 // check for concurrent modifications in iterator, filter
-// remove,
 // removeFirst,
 // removeLast,
 pub fn ArrayList(comptime T: type) type {
@@ -55,6 +54,20 @@ pub fn ArrayList(comptime T: type) type {
             }
             self.index = self.index - 1;
             self.size = self.size - 1;
+        }
+
+        pub fn removeFirst(self: *ArrayList(T)) !void {
+            if (self.isEmpty()) {
+                return Error.NoSuchElement;
+            }
+            try self.remove(0);
+        }
+
+        pub fn removeLast(self: *ArrayList(T)) !void {
+            if (self.isEmpty()) {
+                return Error.NoSuchElement;
+            }
+            try self.remove(self.size - 1);
         }
 
         pub fn set(self: ArrayList(T), index: usize, element: T) !void {
@@ -495,7 +508,7 @@ test "filters elements in the list ... " {
     try std.testing.expectEqual(71, Sum.sumOfAll);
 }
 
-test "removes the first element from the list" {
+test "removes the first element from the list: I" {
     var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
     defer list.deinit();
 
@@ -504,6 +517,21 @@ test "removes the first element from the list" {
     try list.add(40);
 
     try list.remove(0);
+
+    try std.testing.expect(list.contains(21));
+    try std.testing.expect(list.contains(40));
+    try std.testing.expect(!list.contains(10));
+}
+
+test "removes the first element from the list: II" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(10);
+    try list.add(21);
+    try list.add(40);
+
+    try list.removeFirst();
 
     try std.testing.expect(list.contains(21));
     try std.testing.expect(list.contains(40));
@@ -527,7 +555,7 @@ test "removes one element from the list" {
     try std.testing.expect(!list.contains(21));
 }
 
-test "removes the last element from the list" {
+test "removes the last element from the list: I" {
     var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
     defer list.deinit();
 
@@ -542,6 +570,21 @@ test "removes the last element from the list" {
     try std.testing.expect(!list.contains(40));
 }
 
+test "removes the last element from the list: II" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try list.add(10);
+    try list.add(21);
+    try list.add(40);
+
+    try list.removeLast();
+
+    try std.testing.expect(list.contains(10));
+    try std.testing.expect(list.contains(21));
+    try std.testing.expect(!list.contains(40));
+}
+
 test "attempts to remove an element at an index which is beyond the bounds of the list" {
     var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
     defer list.deinit();
@@ -549,4 +592,18 @@ test "attempts to remove an element at an index which is beyond the bounds of th
     try list.add(10);
 
     try std.testing.expectError(ArrayList(i32).Error.IndexOutOfBounds, list.remove(2));
+}
+
+test "attempts to remove the first element from an empty list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try std.testing.expectError(ArrayList(i32).Error.NoSuchElement, list.removeFirst());
+}
+
+test "attempts to remove the last element from an empty list" {
+    var list = try ArrayList(i32).initWithoutCapacity(std.testing.allocator);
+    defer list.deinit();
+
+    try std.testing.expectError(ArrayList(i32).Error.NoSuchElement, list.removeLast());
 }
